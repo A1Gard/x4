@@ -5,6 +5,7 @@ unit x4;
   * requerment: Delphi XE2 .
   * update : 9 Oct 2015 .
   * website : www.4xmen.ir
+  * vertion : 1.1
   * *)
 
 interface
