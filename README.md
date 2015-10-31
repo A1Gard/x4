@@ -1,6 +1,13 @@
 # x4
 x4 is 4xmen delphi unit for some untilty functions and classes.
 
+
+###Third release:
+- add SubStr function
+- add lTrim function
+- add rTrim function
+- add XTrim	function
+
 ###Second release:
 - add SetRegValue function 
 - add GetRegValue function 
