@@ -3,9 +3,9 @@ unit x4;
   * name : x4
   * relase: 30 sep 2015 .
   * requerment: Delphi XE2 .
-  * update : 9 Oct 2015 .
+  * update : 31 Oct 2015 .
   * website : www.4xmen.ir
-  * vertion : 1.1
+  * version : 1.1
   * *)
 
 interface
@@ -57,6 +57,11 @@ function Implode(Str: TStrings; Delimiter: Char): string;
 
 function Base64Encode(Input: WideString): string;
 function Base64Decode(Input: WideString): string;
+function SubStr(InStr: string; start: Int64): string; overload;
+function SubStr(InStr: string; start, Len: Int64): string; overload;
+function rTrim(Input: string; c: Char): string;
+function lTrim(Input: string; c: Char): string;
+function XTrim(Input: string; c: Char): string;
 
 function DrawXMLFromADO(qry: TADOQuery): string;
 function DrawXMLFromDBX(qry: TSQLQuery): string;
@@ -83,6 +88,7 @@ begin
   Head.Value := '';
   Head.Next := nil;
   Head.Child := nil;
+
 end;
 
 (* *
@@ -405,8 +411,10 @@ end;
 
 (* *
   *   explode string
+  * this function work same as PHP explode function
+  * for more documention and read about this function
+  * read this page : http://php.net/manual/en/function.explode.php
   * *)
-
 function Explode(Delimiter: Char; Str: string): TStrings;
 
 begin
@@ -417,9 +425,11 @@ begin
 end;
 
 (* *
-  *   implode strings
+  *   Implode string
+  * this function work same as PHP Implode function
+  * for more documention and read about this function
+  * read this page : http://php.net/manual/en/function.explode.php
   * *)
-
 function Implode(Str: TStrings; Delimiter: Char): string;
 var
   I: Integer;
@@ -520,7 +530,6 @@ begin
     Application.Terminate;
 end;
 
-
 (* *
   *  set registry key in app
   * *)
@@ -542,7 +551,6 @@ begin
   end;
   rg.Free;
 end;
-
 
 (* *
   *  get resgitery keu in app
@@ -597,7 +605,6 @@ end;
   *  set application start up
   * *)
 
-
 function SetAppStartUp(app: string): Boolean;
 var
   rg: TRegistry;
@@ -612,7 +619,6 @@ begin
   end;
   rg.Free;
 end;
-
 
 (* *
   *  unset Application startup
@@ -636,5 +642,106 @@ begin
   rg.Free;
 end;
 
+(* *
+  *   SubStr is work same as SubStr PHP function 
+  * for more documention and read about this function
+  * read this page : http://php.net/manual/en/function.substr.php
+  * *)
+
+function SubStr(InStr: string; start: Int64): string;
+begin
+  if start < 0 then
+  begin
+    Result := Copy(InStr, length(InStr) + start + 1, Abs(start));
+  end
+  else
+  begin
+    Result := Copy(InStr, start + 1, length(InStr) - start);
+  end;
+end;
+
+(* *
+  * SubStr is work same as SubStr PHP function 
+  * for more documention and read about this function
+  * read this page : http://php.net/manual/en/function.substr.php
+  * *)
+function SubStr(InStr: string; start, Len: Int64): string;
+begin
+  if Len < 0 then
+  begin
+    Len := length(InStr) + Len;
+  end;
+  // Result := IntToStr(Len) ;Exit;
+  if start < 0 then
+  begin
+    Result := Copy(InStr, length(InStr) + start + 1, Len);
+  end
+  else
+  begin
+    Result := Copy(InStr, start + 1, Len);
+  end;
+end;
+
+(* *
+  *   right trim string
+  * this function work same as PHP rtrim function
+  * for more documention and read about this function
+  * read this page : http://php.net/manual/en/function.rtrim.php
+  * *)
+
+function rTrim(Input: string; c: Char): string;
+var
+  iter, Len: Cardinal;
+begin
+  iter := length(Input);
+  Len := 0;
+  Result := Input;
+  while (iter >= Len) do
+  begin
+    if Input[iter] <> c then
+    begin
+      Break;
+    end;
+    Result := SubStr(Result, 0, -1);
+    Dec(iter);
+  end;
+end;
+
+(* *
+  *   left trim string
+  * this function work same as PHP rtrim function
+  * for more documention and read about this function
+  * read this page : http://php.net/manual/en/function.ltrim.php
+  * *)
+
+function lTrim(Input: string; c: Char): string;
+var
+  iter, Len: Cardinal;
+begin
+  iter := 0;
+  Len := length(Input);
+  Result := Input;
+  while (iter <= Len) do
+  begin
+    if Input[iter + 1] <> c then
+    begin
+      Break;
+    end;
+    Result := SubStr(Result, 1);
+    Inc(iter);
+  end;
+end;
+
+(* *
+  *   x trim string
+  * this function work same as PHP trim function
+  * for more documention and read about this function
+  *  http://php.net/manual/en/function.trim.php
+  * *)
+
+function XTrim(Input: string; c: Char): string;
+begin
+  Result := (rTrim(lTrim(Input, c), c));
+end;
 
 end.
