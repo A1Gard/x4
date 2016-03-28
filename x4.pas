@@ -1,18 +1,19 @@
 unit x4;
 (* *
   * name : x4
-  * relase: 30 sep 2015 .
-  * requerment: Delphi XE2 .
-  * update : 31 Oct 2015 .
+  * relase: 1 March 2016 .
+  * requerment: Delphi XE2 or later.
+  * update : 28 March 2016
   * website : www.4xmen.ir
-  * version : 1.2
+  * version : 1.4
   * *)
 
 interface
 
 uses System.SysUtils, System.Classes, Vcl.Forms, IdCoder, IdCoderMIME, IdGlobal,
   Data.DB, Data.Win.ADODB, Data.DBXMSSQL, Data.SqlExpr, Winapi.msxml,
-  Winapi.Windows, System.Win.Registry;
+  Winapi.Windows, System.Win.Registry,Winapi.ShellAPI,System.Win.ComObj,
+  Winapi.ShlObj,Winapi.ActiveX;
 
 type
 
@@ -71,6 +72,7 @@ function GetRegValue(Key: string): string;
 function IsAppStartUp(app: string): Boolean;
 function SetAppStartUp(app: string): Boolean;
 function UnsetAppStartUP(app: string): Boolean;
+procedure CreateDesctopShorcut (TargetExeName,ShortcutName:WideString);
 
 implementation
 
@@ -743,5 +745,52 @@ function XTrim(Input: string; c: Char): string;
 begin
   Result := (rTrim(lTrim(Input, c), c));
 end;
+
+
+(* *
+  * Create Desktop shortcut
+  * @param string TargetExeName target path 
+  * @param string ShortcutName shortcut name in desktop
+  * *)
+
+procedure CreateDesctopShorcut (TargetExeName,ShortcutName:WideString);
+ var
+    IObject : IUnknown;
+    ISLink : IShellLink;
+    IPFile : IPersistFile;
+    PIDL : PItemIDList;
+    InFolder : array[0..MAX_PATH] of Char;
+begin
+    {Use TargetExeName:=ParamStr(0) which
+    returns the path and file name of the
+    executing program to create a link to your
+    Application}
+
+    IObject := CreateComObject(CLSID_ShellLink) ;
+    ISLink := IObject as IShellLink;
+    IPFile := IObject as IPersistFile;
+
+    with ISLink do
+    begin
+      SetPath(pChar(TargetExeName)) ;
+      SetWorkingDirectory(pChar(ExtractFilePath(TargetExeName))) ;
+    end;
+
+    // if we want to place a link on the Desktop
+    SHGetSpecialFolderLocation(0, CSIDL_DESKTOPDIRECTORY, PIDL) ;
+    SHGetPathFromIDList(PIDL, InFolder) ;
+
+    {
+     or if we want a link to appear in
+     some other, not-so-special, folder:
+     InFolder := 'c:\SomeFolder'
+    }
+
+    ShortcutName := '\'+ShortcutName+'.lnk';
+    ShortcutName := InFolder + ShortcutName;
+    IPFile.Save(PWChar(ShortcutName), false) ;
+
+end;
+
 
 end.

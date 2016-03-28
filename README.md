@@ -1,6 +1,8 @@
 # x4
 x4 is 4xmen delphi unit for some untilty functions and classes.
 
+###4th release:
+- add CreateDesctopShorcut function
 
 ###Third release:
 - add SubStr function
