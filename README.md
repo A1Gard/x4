@@ -1,6 +1,12 @@
 # x4
 x4 is 4xmen delphi unit for some untilty functions and classes.
 
+###5th release 
+- add KillTask function
+- add KillTaskByID function
+- add GetIpByName function
+- add IsOpenPort function
+
 ###4th release:
 - add CreateDesctopShorcut function
 

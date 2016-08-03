@@ -3,19 +3,32 @@ unit x4;
   * name : x4
   * relase: 1 March 2016 .
   * requerment: Delphi XE2 or later.
-  * update : 28 March 2016
+  * update : 3 Agu 2016
   * website : www.4xmen.ir
-  * version : 1.4
+  * version : 1.5
   * *)
 
 interface
 
 uses System.SysUtils, System.Classes, Vcl.Forms, IdCoder, IdCoderMIME, IdGlobal,
   Data.DB, Data.Win.ADODB, Data.DBXMSSQL, Data.SqlExpr, Winapi.msxml,
-  Winapi.Windows, System.Win.Registry,Winapi.ShellAPI,System.Win.ComObj,
-  Winapi.ShlObj,Winapi.ActiveX;
+  Winapi.Windows, System.Win.Registry, Winapi.ShellAPI, System.Win.ComObj,
+  Winapi.ShlObj, Winapi.ActiveX, Winapi.TlHelp32,Winapi.WinSock,IdTelnet;
 
 type
+
+
+ PAddrInfo = ^TAddrInfo;
+  TAddrInfo = packed record
+    ai_flags: Integer;
+    ai_family: Integer;
+    ai_socktype: Integer;
+    ai_protocol: Integer;
+    ai_addrlen: LongWord;
+    ai_canonname: Array of Char;
+    ai_addr: PSOCKADDR;
+    ai_next: PAddrInfo;
+  end;
 
   TAssoc = record
     Key: ShortString;
@@ -72,7 +85,16 @@ function GetRegValue(Key: string): string;
 function IsAppStartUp(app: string): Boolean;
 function SetAppStartUp(app: string): Boolean;
 function UnsetAppStartUP(app: string): Boolean;
-procedure CreateDesctopShorcut (TargetExeName,ShortcutName:WideString);
+procedure CreateDesctopShorcut(TargetExeName, ShortcutName: WideString);
+
+
+function KillTask(ExeFileName: string): Integer;
+function KillTaskByID(ProcessID: Cardinal): Boolean;
+function GetIpByName(const HostName: string): string;
+function IsOpenPort(ip:string;port:Cardinal):Boolean;
+
+
+
 
 implementation
 
@@ -81,9 +103,101 @@ const
   APP_KEY = 'SOFTWARE\' + _KEY_;
   START_KEY = 'Software\Microsoft\Windows\CurrentVersion\Run';
 
-  (* *
-    *  get instance from this class
-    * *)
+
+
+(**
+ * is open port check
+ * ip string sample : 8.8.8.8
+ * port cardinal sample : 80
+ **)
+function IsOpenPort(ip:string;port:Cardinal):Boolean;
+var
+  tl: TIdTelnet;
+begin
+  tl := TIdTelnet.Create(nil);
+  tl.host := ip ;
+  tl.Port := port;
+
+  try
+
+    tl.Connect;
+    if tl.Connected then
+    begin
+      Result := True;
+    end
+
+  except
+    Result := False;
+  end;
+end;
+
+    // Returns the ip address of the specified hostname.
+  // This could be used as a ping mechanism.
+  // Usage: GetIpByName('www.borland.com') or
+  // GetIpByName('WORKSTATION')
+function GetIpByName(const HostName: string): string;
+var
+  WSAData: TWSAData;
+  R: PHostEnt;
+  A: TInAddr;
+begin
+  Result := 'not found'; // '0.0.0.0'
+  WSAStartup($101, WSAData);
+  R := Winapi.Winsock.GetHostByName(PAnsiChar(AnsiString(HostName)));
+  if Assigned(R) then
+  begin
+    A := PInAddr(r^.h_Addr_List^)^;
+    Result := Winapi.WinSock.inet_ntoa(A);
+  end;
+end;
+
+
+// kill task
+// example :   KillTask('notepad.exe');
+function KillTask(ExeFileName: string): Integer;
+const
+  PROCESS_TERMINATE = $0001;
+var
+  ContinueLoop: BOOL;
+  FSnapshotHandle: THandle;
+  FProcessEntry32: TProcessEntry32;
+begin
+  Result := 0;
+  FSnapshotHandle := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  FProcessEntry32.dwSize := SizeOf(FProcessEntry32);
+  ContinueLoop := Process32First(FSnapshotHandle, FProcessEntry32);
+
+  while Integer(ContinueLoop) <> 0 do
+  begin
+    if ((UpperCase(ExtractFileName(FProcessEntry32.szExeFile))
+      = UpperCase(ExeFileName)) or (UpperCase(FProcessEntry32.szExeFile)
+      = UpperCase(ExeFileName))) then
+      Result := Integer(TerminateProcess(OpenProcess(PROCESS_TERMINATE, BOOL(0),
+        FProcessEntry32.th32ProcessID), 0));
+    ContinueLoop := Process32Next(FSnapshotHandle, FProcessEntry32);
+  end;
+  CloseHandle(FSnapshotHandle);
+end;
+
+
+// kill task by prccess id
+function KillTaskByID(ProcessID: Cardinal): Boolean;
+var
+  hProcess: THandle;
+begin
+  Result := False;
+  hProcess := OpenProcess(PROCESS_TERMINATE, False, ProcessID);
+  if hProcess > 0 then
+    try
+      Result := Win32Check(TerminateProcess(hProcess, 0));
+    finally
+      CloseHandle(hProcess);
+    end;
+end;
+
+(* *
+  *  get instance from this class
+  * *)
 constructor TAssocArray.Create;
 begin
   Head.Key := '';
@@ -645,7 +759,7 @@ begin
 end;
 
 (* *
-  *   SubStr is work same as SubStr PHP function 
+  *   SubStr is work same as SubStr PHP function
   * for more documention and read about this function
   * read this page : http://php.net/manual/en/function.substr.php
   * *)
@@ -663,7 +777,7 @@ begin
 end;
 
 (* *
-  * SubStr is work same as SubStr PHP function 
+  * SubStr is work same as SubStr PHP function
   * for more documention and read about this function
   * read this page : http://php.net/manual/en/function.substr.php
   * *)
@@ -746,51 +860,49 @@ begin
   Result := (rTrim(lTrim(Input, c), c));
 end;
 
-
 (* *
   * Create Desktop shortcut
-  * @param string TargetExeName target path 
+  * @param string TargetExeName target path
   * @param string ShortcutName shortcut name in desktop
   * *)
 
-procedure CreateDesctopShorcut (TargetExeName,ShortcutName:WideString);
- var
-    IObject : IUnknown;
-    ISLink : IShellLink;
-    IPFile : IPersistFile;
-    PIDL : PItemIDList;
-    InFolder : array[0..MAX_PATH] of Char;
+procedure CreateDesctopShorcut(TargetExeName, ShortcutName: WideString);
+var
+  IObject: IUnknown;
+  ISLink: IShellLink;
+  IPFile: IPersistFile;
+  PIDL: PItemIDList;
+  InFolder: array [0 .. MAX_PATH] of Char;
 begin
-    {Use TargetExeName:=ParamStr(0) which
+  { Use TargetExeName:=ParamStr(0) which
     returns the path and file name of the
     executing program to create a link to your
-    Application}
+    Application }
 
-    IObject := CreateComObject(CLSID_ShellLink) ;
-    ISLink := IObject as IShellLink;
-    IPFile := IObject as IPersistFile;
+  IObject := CreateComObject(CLSID_ShellLink);
+  ISLink := IObject as IShellLink;
+  IPFile := IObject as IPersistFile;
 
-    with ISLink do
-    begin
-      SetPath(pChar(TargetExeName)) ;
-      SetWorkingDirectory(pChar(ExtractFilePath(TargetExeName))) ;
-    end;
+  with ISLink do
+  begin
+    SetPath(pChar(TargetExeName));
+    SetWorkingDirectory(pChar(ExtractFilePath(TargetExeName)));
+  end;
 
-    // if we want to place a link on the Desktop
-    SHGetSpecialFolderLocation(0, CSIDL_DESKTOPDIRECTORY, PIDL) ;
-    SHGetPathFromIDList(PIDL, InFolder) ;
+  // if we want to place a link on the Desktop
+  SHGetSpecialFolderLocation(0, CSIDL_DESKTOPDIRECTORY, PIDL);
+  SHGetPathFromIDList(PIDL, InFolder);
 
-    {
-     or if we want a link to appear in
-     some other, not-so-special, folder:
-     InFolder := 'c:\SomeFolder'
-    }
+  {
+    or if we want a link to appear in
+    some other, not-so-special, folder:
+    InFolder := 'c:\SomeFolder'
+  }
 
-    ShortcutName := '\'+ShortcutName+'.lnk';
-    ShortcutName := InFolder + ShortcutName;
-    IPFile.Save(PWChar(ShortcutName), false) ;
+  ShortcutName := '\' + ShortcutName + '.lnk';
+  ShortcutName := InFolder + ShortcutName;
+  IPFile.Save(PWChar(ShortcutName), False);
 
 end;
-
 
 end.
